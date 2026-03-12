@@ -5,8 +5,7 @@ defmodule Nostrum.Mixfile do
   def project do
     [
       app: :nostrum,
-      appup: "appup.ex",
-      compilers: Mix.compilers() ++ [:appup],
+      compilers: Mix.compilers(),
       version: "0.11.0-dev",
       elixir: "~> 1.15",
       elixirc_paths: elixirc_paths(Mix.env()),
@@ -152,7 +151,6 @@ defmodule Nostrum.Mixfile do
       name: :nostrum,
       licenses: ["MIT"],
       files: [
-        "appup.ex",
         "examples",
         "lib",
         ".formatter.exs",
@@ -181,7 +179,7 @@ defmodule Nostrum.Mixfile do
       {:salchicha, "~> 0.5"},
       {:certifi, "~> 2.13"},
       {:mime, "~> 1.6 or ~> 2.0"},
-      {:ezstd, "~> 1.1", optional: true},
+      # {:ezstd, "~> 1.1", optional: true},
       {:telemetry, "~> 1.0", optional: true},
       {:castle, "~> 0.3.0", runtime: false},
       {:ex_doc, "~> 0.37", only: :dev, runtime: false},
