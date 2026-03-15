@@ -986,14 +986,22 @@ defmodule Nostrum.Api.Ratelimiter do
   # See #680
   def connected(
         :info,
-        {:gun_error, _conn, stream, {:error, ~c"The stream cannot be found."}},
+        {:gun_error, conn, stream, {:badstate, ~c"The stream cannot be found."}},
         _data
       ) do
+    :ok = :gun.cancel(conn, stream)
+    :ok = :gun.flush(stream)
+
     Logger.warning(
       "Uh oh. Received spurious warning that unknown stream #{inspect(stream)} cannot be found. Dazed and confused, but trying to continue..."
     )
 
-    :keep_state_and_data
+    {{_bucket, request, from}, running_without_it} = Map.pop(running, stream)
+
+    log_abnormal_close(request, from, reason)
+
+    {:keep_state, %{data | running: running_without_it},
+     {:next_event, :internal, {:requeue, {request, from}, :abnormal_close}}}
   end
 
   def connected(:info, {:gun_down, conn, _, reason, killed_streams}, %{

@@ -302,7 +302,7 @@ defmodule Nostrum.Api.RatelimiterTest do
       req_id = :gen_statem.send_request(ratelimiter, {:queue, request})
       {:ok, %{conn: conn}} = spin_until_connected(ratelimiter)
       stream = make_ref()
-      send(ratelimiter, {:gun_error, conn, stream, {:error, ~c"The stream cannot be found."}})
+      send(ratelimiter, {:gun_error, conn, stream, {:badstate, ~c"The stream cannot be found."}})
       {:reply, reply} = :gen_statem.wait_response(req_id, @request_timeout)
       assert {:ok, body} = reply
       assert %{"request" => "received"} = Jason.decode!(body)
