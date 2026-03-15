@@ -987,7 +987,7 @@ defmodule Nostrum.Api.Ratelimiter do
   def connected(
         :info,
         {:gun_error, conn, stream, {:badstate, ~c"The stream cannot be found."}},
-        _data
+        %{running: running} = data
       ) do
     :ok = :gun.cancel(conn, stream)
     :ok = :gun.flush(stream)
@@ -997,8 +997,6 @@ defmodule Nostrum.Api.Ratelimiter do
     )
 
     {{_bucket, request, from}, running_without_it} = Map.pop(running, stream)
-
-    log_abnormal_close(request, from, reason)
 
     {:keep_state, %{data | running: running_without_it},
      {:next_event, :internal, {:requeue, {request, from}, :abnormal_close}}}
