@@ -1033,9 +1033,7 @@ defmodule Nostrum.Api.Ratelimiter do
         {:next_event, :internal, {:requeue, {request, client}, :abnormal_close}}
       end)
 
-    # new_data = %{empty_state(config) | outstanding: outstanding}
-    outstanding |> inspect() |> Logger.info()
-    new_data = empty_state(config)
+    new_data = %{empty_state(config) | outstanding: outstanding}
     {:next_state, :disconnected, new_data, replies}
   end
 
