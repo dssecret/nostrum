@@ -779,6 +779,10 @@ defmodule Nostrum.Api.Ratelimiter do
     end
   end
 
+  def connected({:timeout, _bucket}, :expired, _data) do
+    :keep_state_and_data
+  end
+
   # Beginning of the response. For responses without a body, this is the
   # complete response. For responses with a body, we set up the buffer here. In
   # either case, we parse the retrieved ratelimiting information here.
@@ -986,20 +990,15 @@ defmodule Nostrum.Api.Ratelimiter do
   # See #680
   def connected(
         :info,
-        {:gun_error, conn, stream, {:badstate, ~c"The stream cannot be found."}},
-        %{running: running} = data
+        {:gun_error, _conn, stream, {:badstate, ~c"The stream cannot be found."}},
+        _data
       ) do
-    :ok = :gun.cancel(conn, stream)
-    :ok = :gun.flush(stream)
 
     Logger.warning(
       "Uh oh. Received spurious warning that unknown stream #{inspect(stream)} cannot be found. Dazed and confused, but trying to continue..."
     )
 
-    {{_bucket, request, from}, running_without_it} = Map.pop(running, stream)
-
-    {:keep_state, %{data | running: running_without_it},
-     {:next_event, :internal, {:requeue, {request, from}, :abnormal_close}}}
+    :keep_state_and_data
   end
 
   def connected(:info, {:gun_down, conn, _, reason, killed_streams}, %{
