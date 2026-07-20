@@ -746,12 +746,25 @@ defmodule Nostrum.Api.Ratelimiter do
   # will have remaining in the next window. If there are waiting entries, we
   # start scheduling, unless we are out of requests for this time window on all
   # bot requests.
-  def connected({:timeout, bucket}, :expired, %{remaining_in_window: 0}) do
+  def connected({:timeout, bucket}, :expired, %{remaining_in_window: 0, outstanding: outstanding} = data) do
     Logger.debug(
       "Ratelimits on #{inspect(bucket)} have reset but we may not queue more requests due to the bot user limit."
     )
 
-    :keep_state_and_data
+    case Map.fetch(outstanding, bucket) do
+      {:ok, {_remaining, {[], []}}} ->
+        # Nobody else has anything to queue, clean up the bucket.
+        {:keep_state, %{data | outstanding: Map.delete(outstanding, bucket)}}
+
+      {:ok, {_remaining, queue}} ->
+        # The bucket has a backlog. Set it to :initial so `unpause_requests` 
+        # can safely pick it up once the user limit resets.
+        outstanding_with_this = Map.put(outstanding, bucket, {:initial, queue})
+        {:keep_state, %{data | outstanding: outstanding_with_this}}
+
+      :error ->
+        :keep_state_and_data
+    end
   end
 
   def connected(
