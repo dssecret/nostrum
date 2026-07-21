@@ -649,8 +649,22 @@ defmodule Nostrum.Api.Ratelimiter do
   # state. Treat it as a "we have one request remaining", because that initial
   # request will probe for how many remaining requests we actually have (and
   # the marker value will prevent further requests from executing)
-  def connected(:internal, {:next, :initial, bucket}, _data) do
-    {:keep_state_and_data, {:next_event, :internal, {:next, 1, bucket}}}
+  def connected(:internal, {:next, :initial, bucket}, %{outstanding: outstanding} = data) do
+    {_remaining, queue} = Map.fetch!(outstanding, bucket)
+
+    case :queue.out(queue) do
+      {:empty, _queue} ->
+        :keep_state_and_data
+
+      {{:value, {request, from}}, updated_queue} ->
+        # Safely preserve the :initial state without converting it to an integer
+        outstanding_without_this = Map.put(outstanding, bucket, {:initial, updated_queue})
+
+        # Send exactly one request to probe for the new ratelimits. We do not queue a subsequent
+        # :next event here.
+        {:keep_state, %{data | outstanding: outstanding_without_this},
+         [{:next_event, :internal, {:run, request, bucket, from}}]}
+    end
   end
 
   # Run the next request for the given bucket, with > 0 and non-initial remaining calls.
