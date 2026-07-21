@@ -639,7 +639,7 @@ defmodule Nostrum.Api.Ratelimiter do
     :keep_state_and_data
   end
 
-  def connected(:internal, {:next, _remaining, _bucket}, %{remaining_in_window: 0}) do
+  def connected(:internal, {:next, :initial, _bucket}, %{remaining_in_window: 0}) do
     :keep_state_and_data
   end
 
@@ -665,6 +665,10 @@ defmodule Nostrum.Api.Ratelimiter do
         {:keep_state, %{data | outstanding: outstanding_without_this},
          [{:next_event, :internal, {:run, request, bucket, from}}]}
     end
+  end
+
+  def connected(:internal, {:next, _remaining, _bucket}, %{remaining_in_window: 0}) do
+    :keep_state_and_data
   end
 
   # Run the next request for the given bucket, with > 0 and non-initial remaining calls.
