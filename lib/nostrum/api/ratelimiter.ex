@@ -1089,8 +1089,39 @@ defmodule Nostrum.Api.Ratelimiter do
     {:keep_state_and_data, :postpone}
   end
 
-  def global_limit(:info, {:gun_down, _conn, _stream, _reason}, _data) do
-    {:keep_state_and_data, :postpone}
+  def global_limit(:info, {:gun_down, conn, _, reason, killed_streams}, %{
+        running: running,
+        config: config,
+        outstanding: outstanding
+  } = _data) do
+    # Even with `retry: 0`, gun seems to try and reconnect, potentially because
+    # of WebSocket. Force the connection to die.
+    :ok = :gun.close(conn)
+    :ok = :gun.flush(conn)
+
+    TelemetryShim.execute(
+      ~w[nostrum ratelimiter disconnected]a,
+      %{},
+      %{bot: config.name}
+    )
+
+    # Streams that we previously received `:gun_error` notifications for have
+    # been requeued already, and we won't find them in the `running` list.
+    # Respond to any client whose request we won't retry.
+    # Note that if other code than the `:gun_error` clause for a closed stream
+    # removes the request from the `running` map _and does not requeue it on
+    # its own terms_, a client may hang indefinitely.
+    replies =
+      killed_streams
+      |> Stream.map(&Map.get(running, &1))
+      |> Stream.reject(&is_nil/1)
+      |> Enum.map(fn {_bucket, request, client} ->
+        log_abnormal_close(request, client, reason)
+        {:next_event, :internal, {:requeue, {request, client}, :abnormal_close}}
+      end)
+
+    new_data = %{empty_state(config) | outstanding: outstanding}
+    {:next_state, :disconnected, new_data, replies}
   end
 
   def global_limit({:call, _from}, {:queue, _request}, _data) do
