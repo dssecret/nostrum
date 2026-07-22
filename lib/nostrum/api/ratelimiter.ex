@@ -1089,6 +1089,10 @@ defmodule Nostrum.Api.Ratelimiter do
     {:keep_state_and_data, :postpone}
   end
 
+  def global_limit(:info, {:gun_down, _conn, _stream, _reason}, _data) do
+    {:keep_state_and_data, :postpone}
+  end
+
   def global_limit({:call, _from}, {:queue, _request}, _data) do
     {:keep_state_and_data, :postpone}
   end
