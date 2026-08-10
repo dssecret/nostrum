@@ -413,6 +413,10 @@ defmodule Nostrum.Api.Ratelimiter do
     transitions_postpone_and_begin_connecting(data)
   end
 
+  def disconnected(:internal, {:unpause_requests, _buckets}, data) do
+    transitions_postpone_and_begin_connecting(data)
+  end
+
   # We received a timeout for a bucket that does not have any pending requests.
   # This means that the remaining requests got to exactly 0 before we ceased
   # sending further requests.
